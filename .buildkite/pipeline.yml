@@ -13,8 +13,6 @@ steps:
           command: ["golangci-lint", "run", "-v"]
           environment:
             - "GOFLAGS"
-          volumes:
-            - "/var/lib/buildkite-agent/.gitconfig/:/root/.gitconfig/"
 
   - label: ":test_tube: test"
     key: "test"
