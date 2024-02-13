@@ -1,0 +1,15 @@
+subjects:
+  - id: alice
+    tokens:
+      - envVar: ALICE_TOKEN
+    resources:
+      - id: world
+        actions:
+          - greet
+  - id: bob
+    tokens:
+      - envVar: BOB_TOKEN
+    resources:
+      - id: everyone
+        actions:
+          - greet
