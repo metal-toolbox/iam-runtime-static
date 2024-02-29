@@ -99,17 +99,22 @@ func newFromPolicy(c policy, logger *zap.SugaredLogger) (*server, error) {
 	return out, nil
 }
 
-func (s *server) AuthenticateSubject(_ context.Context, req *authentication.AuthenticateSubjectRequest) (*authentication.AuthenticateSubjectResponse, error) {
-	s.logger.Info("received AuthenticateSubject request")
+func (s *server) ValidateCredential(_ context.Context, req *authentication.ValidateCredentialRequest) (*authentication.ValidateCredentialResponse, error) {
+	s.logger.Info("received ValidateCredential request")
 
 	sub, ok := s.tokens[req.Credential]
 	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid credential")
+		out := &authentication.ValidateCredentialResponse{
+			Result: authentication.ValidateCredentialResponse_RESULT_INVALID,
+		}
+
+		return out, nil
 	}
 
-	resp := &authentication.AuthenticateSubjectResponse{
-		SubjectClaims: map[string]string{
-			"sub": sub.ID,
+	resp := &authentication.ValidateCredentialResponse{
+		Result: authentication.ValidateCredentialResponse_RESULT_VALID,
+		Subject: &authentication.Subject{
+			SubjectId: sub.ID,
 		},
 	}
 
@@ -121,14 +126,19 @@ func (s *server) CheckAccess(_ context.Context, req *authorization.CheckAccessRe
 
 	sub, ok := s.tokens[req.Credential]
 	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid credential")
+		return nil, status.Errorf(codes.InvalidArgument, "invalid credential")
 	}
 
+	result := authorization.CheckAccessResponse_RESULT_ALLOWED
 	for _, action := range req.Actions {
 		if ok := checkAccess(sub, action.Action, action.ResourceId); !ok {
-			return nil, status.Errorf(codes.PermissionDenied, "subject does not have permission to perform '%s' on resource '%s'", action.Action, action.ResourceId)
+			result = authorization.CheckAccessResponse_RESULT_DENIED
 		}
 	}
 
-	return &authorization.CheckAccessResponse{}, nil
+	out := &authorization.CheckAccessResponse{
+		Result: result,
+	}
+
+	return out, nil
 }
