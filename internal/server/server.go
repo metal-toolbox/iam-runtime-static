@@ -130,6 +130,7 @@ func (s *server) CheckAccess(_ context.Context, req *authorization.CheckAccessRe
 	}
 
 	result := authorization.CheckAccessResponse_RESULT_ALLOWED
+
 	for _, action := range req.Actions {
 		if ok := checkAccess(sub, action.Action, action.ResourceId); !ok {
 			result = authorization.CheckAccessResponse_RESULT_DENIED
