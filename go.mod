@@ -1,6 +1,6 @@
 module github.com/metal-toolbox/iam-runtime-static
 
-go 1.21.6
+go 1.22.2
 
 require (
 	github.com/metal-toolbox/iam-runtime v0.3.0
