@@ -7,12 +7,23 @@ import (
 
 	"github.com/metal-toolbox/iam-runtime/pkg/iam/runtime/authentication"
 	"github.com/metal-toolbox/iam-runtime/pkg/iam/runtime/authorization"
+	"github.com/metal-toolbox/iam-runtime/pkg/iam/runtime/identity"
+	"golang.org/x/oauth2"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+type mockedTokenSource struct {
+	token string
+	err   error
+}
+
+func (s mockedTokenSource) Token() (*oauth2.Token, error) {
+	return &oauth2.Token{AccessToken: s.token}, s.err
+}
 
 func TestServer(t *testing.T) {
 	// Run everything in parallel
@@ -70,7 +81,7 @@ func TestServer(t *testing.T) {
 
 	logger := zap.NewNop().Sugar()
 
-	srv, err := newFromPolicy(authPolicy, logger)
+	srv, err := newFromPolicy(authPolicy, logger, mockedTokenSource{token: "some access token"})
 
 	require.NoError(t, err)
 
@@ -155,5 +166,16 @@ func TestServer(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, authorization.CheckAccessResponse_RESULT_DENIED, resp.Result)
+	})
+
+	t.Run("GetAccessToken", func(t *testing.T) {
+		t.Parallel()
+
+		req := &identity.GetAccessTokenRequest{}
+
+		resp, err := srv.GetAccessToken(context.Background(), req)
+
+		require.NoError(t, err)
+		require.Equal(t, "some access token", resp.Token)
 	})
 }

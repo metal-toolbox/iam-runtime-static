@@ -7,10 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/metal-toolbox/iam-runtime-static/internal/accesstoken"
 	"github.com/metal-toolbox/iam-runtime-static/internal/server"
 
 	"github.com/metal-toolbox/iam-runtime/pkg/iam/runtime/authentication"
 	"github.com/metal-toolbox/iam-runtime/pkg/iam/runtime/authorization"
+	"github.com/metal-toolbox/iam-runtime/pkg/iam/runtime/identity"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -36,7 +38,7 @@ func init() {
 	viperBindFlag("policy", serveCmd.Flags().Lookup("policy"))
 }
 
-func serve(_ context.Context, v *viper.Viper) error {
+func serve(ctx context.Context, v *viper.Viper) error {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
@@ -51,7 +53,18 @@ func serve(_ context.Context, v *viper.Viper) error {
 		}
 	}
 
-	iamSrv, err := server.NewServer(policyPath, logger)
+	var accessTokenConfig accesstoken.Config
+
+	if err := viper.UnmarshalKey("accesstoken", &accessTokenConfig); err != nil {
+		logger.Fatalw("failed to unmarshal access token config", "error", err)
+	}
+
+	tokenSource, err := accesstoken.NewTokenSource(ctx, accessTokenConfig)
+	if err != nil {
+		logger.Fatalw("failed to create new token source", "error", err)
+	}
+
+	iamSrv, err := server.NewServer(policyPath, logger, tokenSource)
 	if err != nil {
 		logger.Fatalw("failed to create server", "error", err)
 	}
@@ -59,6 +72,7 @@ func serve(_ context.Context, v *viper.Viper) error {
 	grpcSrv := grpc.NewServer()
 	authorization.RegisterAuthorizationServer(grpcSrv, iamSrv)
 	authentication.RegisterAuthenticationServer(grpcSrv, iamSrv)
+	identity.RegisterIdentityServer(grpcSrv, iamSrv)
 
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {

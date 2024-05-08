@@ -19,4 +19,8 @@ $ ALICE_TOKEN=a1ic3 BOB_TOKEN=B0b ./bin/iam-runtime-static serve --policy policy
 
 To configure iam-runtime-static, you must define the static tokens that correspond to subjects and the resources those subjects have access to. An [example policy][example-policy] is available in this repository.
 
+Additionally you may configure the Identity service by providing a config file with additional access token configuration.
+An [example config][example-config] is available in this repository.
+
 [example-policy]: ./policy.example.yaml
+[example-config]: ./config.example.yaml

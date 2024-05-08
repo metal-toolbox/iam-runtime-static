@@ -7,7 +7,9 @@ import (
 
 	"github.com/metal-toolbox/iam-runtime/pkg/iam/runtime/authentication"
 	"github.com/metal-toolbox/iam-runtime/pkg/iam/runtime/authorization"
+	"github.com/metal-toolbox/iam-runtime/pkg/iam/runtime/identity"
 	"go.uber.org/zap"
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -42,20 +44,23 @@ func checkAccess(sub policySubject, action, resourceID string) bool {
 type Server interface {
 	authentication.AuthenticationServer
 	authorization.AuthorizationServer
+	identity.IdentityServer
 }
 
 type server struct {
 	// Map from tokens to subjects
 	tokens map[string]policySubject
 
-	logger *zap.SugaredLogger
+	logger      *zap.SugaredLogger
+	tokenSource oauth2.TokenSource
 
 	authentication.UnimplementedAuthenticationServer
 	authorization.UnimplementedAuthorizationServer
+	identity.UnimplementedIdentityServer
 }
 
 // NewServer creates a new static runtime server.
-func NewServer(policyPath string, logger *zap.SugaredLogger) (Server, error) {
+func NewServer(policyPath string, logger *zap.SugaredLogger, tokenSource oauth2.TokenSource) (Server, error) {
 	f, err := os.Open(policyPath)
 	if err != nil {
 		return nil, err
@@ -68,10 +73,10 @@ func NewServer(policyPath string, logger *zap.SugaredLogger) (Server, error) {
 		return nil, err
 	}
 
-	return newFromPolicy(policy, logger)
+	return newFromPolicy(policy, logger, tokenSource)
 }
 
-func newFromPolicy(c policy, logger *zap.SugaredLogger) (*server, error) {
+func newFromPolicy(c policy, logger *zap.SugaredLogger, tokenSource oauth2.TokenSource) (*server, error) {
 	tokens := make(map[string]policySubject)
 
 	for _, sub := range c.Subjects {
@@ -92,8 +97,9 @@ func newFromPolicy(c policy, logger *zap.SugaredLogger) (*server, error) {
 	}
 
 	out := &server{
-		tokens: tokens,
-		logger: logger,
+		tokens:      tokens,
+		logger:      logger,
+		tokenSource: tokenSource,
 	}
 
 	return out, nil
@@ -142,4 +148,21 @@ func (s *server) CheckAccess(_ context.Context, req *authorization.CheckAccessRe
 	}
 
 	return out, nil
+}
+
+func (s *server) GetAccessToken(_ context.Context, _ *identity.GetAccessTokenRequest) (*identity.GetAccessTokenResponse, error) {
+	s.logger.Infow("received GetAccessToken request")
+
+	token, err := s.tokenSource.Token()
+	if err != nil {
+		s.logger.Errorw("failed to fetch token token from token source", err)
+
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	resp := &identity.GetAccessTokenResponse{
+		Token: token.AccessToken,
+	}
+
+	return resp, nil
 }
