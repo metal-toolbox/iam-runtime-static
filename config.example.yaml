@@ -1,0 +1,19 @@
+---
+accessToken:
+  source:
+    command:
+      shell: ""
+      command: ""
+      noReuseToken: false
+    clientCredentials:
+      issuer: ""
+      clientID: ""
+      clientSecret: ""
+    generate:
+      issuer: ""
+      subject: ""
+      expiry: ""
+  exchange:
+    issuer: ""
+    grantType: ""
+    tokenType: ""
