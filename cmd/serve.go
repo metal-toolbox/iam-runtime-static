@@ -36,7 +36,7 @@ func init() {
 	viperBindFlag("policy", serveCmd.Flags().Lookup("policy"))
 }
 
-func serve(_ context.Context, v *viper.Viper) error {
+func serve(ctx context.Context, v *viper.Viper) error {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
@@ -60,7 +60,9 @@ func serve(_ context.Context, v *viper.Viper) error {
 	authorization.RegisterAuthorizationServer(grpcSrv, iamSrv)
 	authentication.RegisterAuthenticationServer(grpcSrv, iamSrv)
 
-	listener, err := net.Listen("unix", socketPath)
+	listenCfg := &net.ListenConfig{}
+
+	listener, err := listenCfg.Listen(ctx, "unix", socketPath)
 	if err != nil {
 		logger.Fatalw("failed to listen", "error", err)
 	}
